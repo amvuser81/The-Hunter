@@ -64,13 +64,35 @@ export function ChatPage({ session, needsSetup, chatId }) {
           window.history.replaceState({}, '', '/');
           return;
         }
-        const uiMessages = dbMessages.map((msg) => ({
-          id: msg.id,
-          role: msg.role,
-          content: msg.content,
-          parts: [{ type: 'text', text: msg.content }],
-          createdAt: new Date(msg.createdAt),
-        }));
+        const uiMessages = [];
+        for (const msg of dbMessages) {
+          let parts;
+          try {
+            const parsed = JSON.parse(msg.content);
+            if (parsed?.type === 'tool-invocation') {
+              parts = [parsed];
+            } else {
+              parts = [{ type: 'text', text: msg.content }];
+            }
+          } catch {
+            parts = [{ type: 'text', text: msg.content }];
+          }
+
+          // Merge consecutive assistant messages into one (matches streaming layout)
+          const prev = uiMessages[uiMessages.length - 1];
+          if (prev && prev.role === 'assistant' && msg.role === 'assistant') {
+            prev.parts.push(...parts);
+            prev.content += '\n' + msg.content;
+          } else {
+            uiMessages.push({
+              id: msg.id,
+              role: msg.role,
+              content: msg.content,
+              parts,
+              createdAt: new Date(msg.createdAt),
+            });
+          }
+        }
         setInitialMessages(uiMessages);
 
         // Check if this is a code chat
