@@ -163,7 +163,7 @@ export function RunnersPage({ session }) {
           <button
             onClick={() => { setRefreshing(true); fetchPage(1); }}
             disabled={refreshing}
-            className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium border border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50 disabled:pointer-events-none"
+            className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 min-h-[44px] text-xs font-medium border border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50 disabled:pointer-events-none"
           >
             {refreshing ? (
               <>
@@ -190,7 +190,7 @@ export function RunnersPage({ session }) {
             <button
               onClick={() => { setRefreshing(true); fetchPage(page - 1); }}
               disabled={page <= 1 || refreshing}
-              className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium border border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50 disabled:pointer-events-none"
+              className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 min-h-[44px] text-sm font-medium border border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50 disabled:pointer-events-none"
             >
               Previous
             </button>
@@ -198,7 +198,7 @@ export function RunnersPage({ session }) {
             <button
               onClick={() => { setRefreshing(true); fetchPage(page + 1); }}
               disabled={!hasMore || refreshing}
-              className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium border border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50 disabled:pointer-events-none"
+              className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 min-h-[44px] text-sm font-medium border border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50 disabled:pointer-events-none"
             >
               Next
             </button>

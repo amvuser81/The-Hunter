@@ -32,8 +32,7 @@ function LinkSafetyModal({ url, isOpen, onClose, onConfirm }) {
       onClick={onClose}
     >
       <div
-        className="relative mx-4 flex w-full flex-col gap-3 rounded-lg border border-border bg-background p-4 shadow-lg"
-        style={{ maxWidth: '340px' }}
+        className="relative mx-4 flex w-full flex-col gap-3 rounded-lg border border-border bg-background p-4 shadow-lg max-w-[340px]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="font-medium text-sm text-foreground">Open external link?</div>
@@ -370,13 +369,13 @@ export function PreviewMessage({ message, isLoading, onRetry, onEdit }) {
             {!isLoading && text && (
               <div
                 className={cn(
-                  'flex gap-1 mt-1 opacity-0 transition-opacity group-hover:opacity-100',
+                  'flex gap-1 mt-1 opacity-100 md:opacity-0 transition-opacity md:group-hover:opacity-100',
                   isUser ? 'justify-end' : 'justify-start'
                 )}
               >
                 <button
                   onClick={handleCopy}
-                  className="rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-muted"
+                  className="rounded-md p-2 md:p-1 text-muted-foreground hover:text-foreground hover:bg-muted"
                   aria-label="Copy message"
                 >
                   {copied ? <CheckIcon size={14} /> : <CopyIcon size={14} />}
@@ -384,7 +383,7 @@ export function PreviewMessage({ message, isLoading, onRetry, onEdit }) {
                 {onRetry && (
                   <button
                     onClick={() => onRetry(message)}
-                    className="rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-muted"
+                    className="rounded-md p-2 md:p-1 text-muted-foreground hover:text-foreground hover:bg-muted"
                     aria-label="Retry"
                   >
                     <RefreshIcon size={14} />
@@ -393,7 +392,7 @@ export function PreviewMessage({ message, isLoading, onRetry, onEdit }) {
                 {isUser && onEdit && (
                   <button
                     onClick={handleEditStart}
-                    className="rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-muted"
+                    className="rounded-md p-2 md:p-1 text-muted-foreground hover:text-foreground hover:bg-muted"
                     aria-label="Edit message"
                   >
                     <SquarePenIcon size={14} />

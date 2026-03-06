@@ -158,7 +158,7 @@ export function ChatInput({ input, setInput, onSubmit, status, stop, files, setF
     );
     if (bare) return disabledContent;
     return (
-      <div className="mx-auto w-full max-w-4xl px-4 pb-4 md:px-6">
+      <div className="mx-auto w-full max-w-4xl px-4 pb-[max(1rem,var(--safe-area-bottom))] md:px-6">
         {disabledContent}
       </div>
     );
@@ -301,7 +301,7 @@ export function ChatInput({ input, setInput, onSubmit, status, stop, files, setF
 
   if (bare) return formContent;
   return (
-    <div className="mx-auto w-full max-w-4xl px-4 pb-4 md:px-6">
+    <div className="mx-auto w-full max-w-4xl px-4 pb-[max(1rem,var(--safe-area-bottom))] md:px-6">
       {formContent}
     </div>
   );

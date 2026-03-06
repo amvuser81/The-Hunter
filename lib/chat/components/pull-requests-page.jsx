@@ -53,7 +53,7 @@ export function PullRequestsPage({ session }) {
           <button
             onClick={() => { setRefreshing(true); fetchPRs(); }}
             disabled={refreshing}
-            className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium border border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50 disabled:pointer-events-none"
+            className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 min-h-[44px] text-xs font-medium border border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50 disabled:pointer-events-none"
           >
             {refreshing ? (
               <><SpinnerIcon size={14} /> Refreshing...</>

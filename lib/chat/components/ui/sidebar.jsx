@@ -219,7 +219,7 @@ export function SidebarTrigger({ className, ...props }) {
   return (
     <button
       className={cn(
-        'inline-flex items-center justify-center rounded-md p-2 text-foreground hover:bg-muted',
+        'inline-flex items-center justify-center rounded-md p-2 min-h-[44px] min-w-[44px] text-foreground hover:bg-muted',
         className
       )}
       onClick={toggleSidebar}

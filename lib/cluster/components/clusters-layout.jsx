@@ -22,7 +22,7 @@ export function ClustersLayout({ session, children }) {
         <h1 className="text-2xl font-semibold">Clusters</h1>
       </div>
 
-      <div className="flex gap-1 border-b border-border mb-6">
+      <div className="flex gap-1 border-b border-border mb-6 overflow-x-auto">
         {TABS.map((tab) => {
           const isActive = activePath === tab.href || activePath.startsWith(tab.href + '/');
           const Icon = tab.icon;
@@ -30,7 +30,7 @@ export function ClustersLayout({ session, children }) {
             <a
               key={tab.id}
               href={tab.href}
-              className={`inline-flex items-center gap-2 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
+              className={`inline-flex items-center gap-2 px-3 py-2 min-h-[44px] shrink-0 text-sm font-medium border-b-2 transition-colors ${
                 isActive
                   ? 'border-foreground text-foreground'
                   : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'

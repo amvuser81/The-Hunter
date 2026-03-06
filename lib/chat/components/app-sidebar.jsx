@@ -65,19 +65,13 @@ export function AppSidebar({ user }) {
           {!collapsed && (
             <span className="px-2 font-semibold text-lg">ThePopeBot{version && <span className="text-[11px] font-normal text-muted-foreground"> v{version}</span>}</span>
           )}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                className="inline-flex shrink-0 items-center justify-center rounded-md p-2 text-muted-foreground hover:bg-background hover:text-foreground"
-                onClick={toggleSidebar}
-              >
-                <PanelLeftIcon size={16} />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side={collapsed ? 'right' : 'bottom'}>
-              {collapsed ? 'Open sidebar' : 'Close sidebar'}
-            </TooltipContent>
-          </Tooltip>
+          <button
+            className="inline-flex shrink-0 items-center justify-center rounded-md p-2 text-muted-foreground hover:bg-background hover:text-foreground"
+            onClick={toggleSidebar}
+            aria-label="Toggle sidebar"
+          >
+            <PanelLeftIcon size={16} />
+          </button>
         </div>
 
         <SidebarMenu>
