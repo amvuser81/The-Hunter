@@ -1,0 +1,39 @@
+name: Label Webhook
+
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Look up webhook URL and fire
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          LABEL="${{ github.event.label.name }}"
+
+          # Normalize label to variable name: "in-progress" → "IN_PROGRESS"
+          VAR_NAME=$(echo "$LABEL" | tr '[:lower:]' '[:upper:]' | sed 's/[^A-Z0-9]/_/g')
+          VAR_NAME="${VAR_NAME}_WEBHOOK_URL"
+
+          echo "Label added: '$LABEL' → looking for variable: $VAR_NAME"
+
+          # Fetch the variable via GitHub API
+          WEBHOOK_URL=$(gh api "repos/${{ github.repository }}/actions/variables/${VAR_NAME}" --jq '.value' 2>/dev/null || true)
+
+          if [ -z "$WEBHOOK_URL" ]; then
+            echo "No variable '$VAR_NAME' found — skipping"
+            exit 0
+          fi
+
+          echo "Firing webhook for label '$LABEL' → $WEBHOOK_URL"
+
+          curl -s -X POST "$WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n \
+              --argjson number '${{ github.event.issue.number }}' \
+              --arg label "$LABEL" \
+              '{number: $number, label: $label}')"
