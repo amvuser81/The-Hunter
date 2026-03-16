@@ -1,45 +1,113 @@
 # Unified Coding Agent Docker Image — Plan
 
-## Context
+## Goal
 
-We maintain 4 separate Claude Code Docker images (`job`, `headless`, `workspace`, `cluster-worker`) that share ~80% of their code. This plan consolidates them into a single image + modular entrypoint that selects the right path based on env vars.
+Replace 4 separate Claude Code Docker images (`claude-code-job`, `claude-code-headless`, `claude-code-workspace`, `claude-code-cluster-worker`) with a single unified image. Each old image becomes a "runtime" — a folder of numbered shell scripts executed sequentially. Shared logic lives in `common/` and is symlinked into runtime folders at the correct position in the sequence.
+
+## History
+
+We analyzed all 4 existing Dockerfiles and entrypoints side-by-side. Key findings:
+
+- **Dockerfiles**: ~80% identical (Node.js, GitHub CLI, Claude Code, non-root user). Differences: job uses `node:22-bookworm-slim` while others use `ubuntu:24.04`; workspace adds tmux+ttyd; job adds Playwright.
+- **Entrypoints**: All share git identity setup and Claude trust config. Beyond that, each has a distinct linear flow — job unpacks GitHub Actions secrets and creates PRs; headless does clone-or-reset with rebase-push; workspace stays alive via tmux+ttyd; cluster-worker is the simplest (bind-mount, run, exit).
+- **Lifecycle** is NOT a Dockerfile concern — it's whether the entrypoint exits or blocks (`exec ttyd`), and whether the caller sets `AutoRemove` or calls `removeContainer()`.
+- **The old "stages" approach** (15 granular scripts with if-checks) was wrong — it's really about different runtime profiles, not configurable stages.
 
 ## Decisions
 
-- **Playwright**: Always included. One image, no variants.
+- **Playwright**: Always included in the image. One image, no variants.
 - **Non-root user**: `coding-agent` with home at `/home/coding-agent`
 - **Directory**: `docker/coding-agent/`
-- **Lifecycle**: Not a Dockerfile concern — controlled by whether entrypoint exits or blocks, and caller's AutoRemove/removeContainer behavior.
+- **Architecture**: `RUNTIME` env var selects a folder. Numbered scripts in that folder run sequentially. Shared scripts live in `common/` and are symlinked into runtime folders at the right position.
+
+---
 
 ## Directory Structure
 
 ```
 docker/coding-agent/
 ├── Dockerfile
-├── entrypoint.sh              # Thin orchestrator — sources stages in order
-├── commands/                   # Claude Code custom commands (from headless/workspace)
-├── .tmux.conf                  # tmux config (from workspace)
+├── entrypoint.sh                    # Sources /scripts/${RUNTIME}/*.sh in order
+├── commands/                        # Claude Code custom commands (from existing headless/workspace)
+├── .tmux.conf                       # tmux config (from existing workspace)
 └── scripts/
-    ├── setup-auth.sh           # Secrets unpacking (SECRETS/LLM_SECRETS JSON → env vars)
-    ├── setup-git.sh            # Git identity from GH_TOKEN
-    ├── setup-workspace.sh      # Clone, reset, or skip (bind-mount)
-    ├── setup-branch.sh         # Feature branch checkout/create
-    ├── setup-skills.sh         # npm install in active skills
-    ├── setup-logging.sh        # Create LOG_DIR, write initial meta.json
-    ├── post-run-git.sh         # Git commit/push/PR after claude exits
-    ├── post-run-logging.sh     # Finalize meta.json with endedAt
-    └── claude/
-        ├── setup-auth.sh       # Unset API key, export OAuth token
-        ├── setup-trust.sh      # ~/.claude/settings.json + ~/.claude.json
-        ├── setup-context.sh    # Chat context file + SessionStart hook
-        ├── setup-mcp.sh        # Register Playwright MCP server
-        ├── setup-prompt.sh     # Build system prompt from MD files / inline
-        └── run.sh              # Build claude args + invoke (headless or interactive)
+    ├── common/
+    │   ├── setup-git.sh             # gh auth setup-git + derive name/email from GH API
+    │   ├── claude-auth.sh           # unset ANTHROPIC_API_KEY, export CLAUDE_CODE_OAUTH_TOKEN
+    │   ├── claude-trust.sh          # Write ~/.claude/settings.json + ~/.claude.json
+    │   ├── clone-or-reset.sh        # Clone if no .git, else fetch+reset+clean
+    │   ├── feature-branch.sh        # Create or checkout feature branch
+    │   └── run-claude-headless.sh   # Build claude args, invoke with -p, capture EXIT_CODE
+    │
+    ├── job/
+    │   ├── 1_unpack-secrets.sh              # real — SECRETS/LLM_SECRETS JSON → env vars
+    │   ├── 2_setup-git.sh                   → ../common/setup-git.sh
+    │   ├── 3_clone.sh                       # real — git clone --single-branch --depth 1
+    │   ├── 4_claude-auth.sh                 → ../common/claude-auth.sh
+    │   ├── 5_claude-trust.sh                → ../common/claude-trust.sh
+    │   ├── 6_install-skills.sh              # real — npm install in skills/active/*/
+    │   ├── 7_setup-mcp.sh                  # real — claude mcp add playwright
+    │   ├── 8_build-prompt.sh               # real — concat SOUL.md + JOB_AGENT.md, resolve {{datetime}}
+    │   ├── 9_run-claude.sh                 # real — run claude, capture to log files
+    │   └── 10_commit-and-pr.sh             # real — commit, push, remove logs, gh pr create
+    │
+    ├── headless/
+    │   ├── 1_setup-git.sh                   → ../common/setup-git.sh
+    │   ├── 2_clone-or-reset.sh              → ../common/clone-or-reset.sh
+    │   ├── 3_feature-branch.sh              → ../common/feature-branch.sh
+    │   ├── 4_claude-auth.sh                 → ../common/claude-auth.sh
+    │   ├── 5_claude-trust.sh                → ../common/claude-trust.sh
+    │   ├── 6_run-claude.sh                  → ../common/run-claude-headless.sh
+    │   └── 7_rebase-push.sh                # real — git add, commit, rebase, force-push (or AI merge-back)
+    │
+    ├── workspace/
+    │   ├── 1_setup-git.sh                   → ../common/setup-git.sh
+    │   ├── 2_clone-or-reset.sh              → ../common/clone-or-reset.sh
+    │   ├── 3_feature-branch.sh              → ../common/feature-branch.sh
+    │   ├── 4_claude-auth.sh                 → ../common/claude-auth.sh
+    │   ├── 5_claude-trust.sh                # real — extends common with SessionStart hook for chat context
+    │   ├── 6_chat-context.sh               # real — write .claude/chat-context.txt from CHAT_CONTEXT env
+    │   └── 7_start-interactive.sh          # real — tmux new-session + exec ttyd (never returns)
+    │
+    └── cluster-worker/
+        ├── 1_setup-git.sh                   → ../common/setup-git.sh (conditional — skips if no GH_TOKEN)
+        ├── 2_claude-auth.sh                 → ../common/claude-auth.sh
+        ├── 3_claude-trust.sh                → ../common/claude-trust.sh
+        ├── 4_setup-logging.sh              # real — mkdir LOG_DIR, prep meta.json
+        ├── 5_run-claude.sh                 # real — run claude with tee to log files
+        └── 6_finalize-logging.sh           # real — write endedAt to meta.json
 ```
+
+**Key**: `→` = symlink to common script. `# real` = runtime-specific file.
 
 ---
 
-## Step 1: Dockerfile
+## Entrypoint
+
+```bash
+#!/bin/bash
+set -e
+
+if [ -z "$RUNTIME" ]; then
+    echo "ERROR: RUNTIME env var is required (job, headless, workspace, cluster-worker)"
+    exit 1
+fi
+
+if [ ! -d "/scripts/${RUNTIME}" ]; then
+    echo "ERROR: Unknown runtime '${RUNTIME}' — no scripts found at /scripts/${RUNTIME}/"
+    exit 1
+fi
+
+for script in /scripts/${RUNTIME}/*.sh; do
+    source "$script"
+done
+```
+
+No branching logic in the entrypoint itself. Each runtime folder is the complete recipe.
+
+---
+
+## Dockerfile
 
 Single superset image. Base `ubuntu:24.04`.
 
@@ -54,137 +122,10 @@ Single superset image. Base `ubuntu:24.04`.
 
 **User**: `coding-agent` (non-root), home `/home/coding-agent`
 **WORKDIR**: `/home/coding-agent/workspace`
-**COPY**: `scripts/`, `commands/`, `.tmux.conf`, `entrypoint.sh`
+**COPY**: `scripts/` (with symlinks preserved), `commands/`, `.tmux.conf`, `entrypoint.sh`
 **ENV**: `PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers`
 
-Status: [ ] TODO
-
----
-
-## Step 2: Entrypoint (thin orchestrator)
-
-Sources each stage script in order. Scripts check their own env vars and skip if not relevant.
-
-```bash
-#!/bin/bash
-set -e
-
-# --- General setup ---
-source /scripts/setup-auth.sh
-source /scripts/setup-git.sh
-source /scripts/setup-workspace.sh
-source /scripts/setup-branch.sh
-source /scripts/setup-skills.sh
-source /scripts/setup-logging.sh
-
-# --- Claude Code setup ---
-source /scripts/claude/setup-auth.sh
-source /scripts/claude/setup-trust.sh
-source /scripts/claude/setup-context.sh
-source /scripts/claude/setup-mcp.sh
-source /scripts/claude/setup-prompt.sh
-
-# --- Run ---
-set +e
-source /scripts/claude/run.sh
-# EXIT_CODE is now set (interactive mode never reaches here — exec replaces process)
-
-# --- Post-run ---
-source /scripts/post-run-git.sh
-source /scripts/post-run-logging.sh
-exit $EXIT_CODE
-```
-
-Status: [ ] TODO
-
----
-
-## Step 3: Stage Scripts
-
-### 3a. `setup-auth.sh` — Secrets + OAuth
-- If `SECRETS` set: unpack JSON → env vars via jq eval
-- If `LLM_SECRETS` set: unpack JSON → env vars via jq eval
-- Always: `unset ANTHROPIC_API_KEY`
-- Always: `export CLAUDE_CODE_OAUTH_TOKEN`
-
-Status: [ ] TODO
-
-### 3b. `setup-git.sh` — Git Identity
-- If `GH_TOKEN` set: `gh auth setup-git`, derive name/email from `gh api user`
-- If `GH_TOKEN` empty: skip entirely
-
-Status: [ ] TODO
-
-### 3c. `setup-workspace.sh` — Get the Code
-Controlled by `GIT_STRATEGY` env var:
-
-| Value | Behavior | Used by |
-|-------|----------|---------|
-| `clone-job` | `git clone --single-branch --depth 1 $REPO_URL` into WORKDIR | job |
-| `clone-or-reset` | Clone if no .git, else fetch+reset+clean | headless, workspace |
-| `bind-mount` (default) | Skip — code already mounted | cluster-worker |
-
-Status: [ ] TODO
-
-### 3d. `setup-branch.sh` — Feature Branch
-- If `FEATURE_BRANCH` set AND `PERMISSION` != `investigate`: create or checkout
-- Otherwise: skip
-
-Status: [ ] TODO
-
-### 3e. `setup-trust.sh` — Claude Code Config
-- Always: write `~/.claude/settings.json` (trust, dark theme, skip dangerous prompt)
-- Always: write `~/.claude.json` (onboarding complete, project trust, WebSearch allowed)
-- If `CHAT_CONTEXT` set: write `.claude/chat-context.txt` + add SessionStart hook
-
-Status: [ ] TODO
-
-### 3f. `setup-extras.sh` — Optional Features
-- If `ENABLE_SKILLS=1`: npm install in each `skills/active/*/`
-- If `ENABLE_PLAYWRIGHT=1`: `claude mcp add playwright`
-- If `SYSTEM_PROMPT_FILES` set: concat listed MD files, resolve `{{datetime}}`
-- If `JOB_CONFIG` path exists: read title + description from JSON
-
-Status: [ ] TODO
-
-### 3g. `run-claude.sh` — Invoke Claude Code
-Two paths based on `MODE`:
-
-**`MODE=headless`** (default):
-- Build args: `-p "$PROMPT"`, `--verbose`, `--output-format stream-json`
-- Add `--model $LLM_MODEL` if set
-- Add permission flag based on `PERMISSION`: `dangerous` → `--dangerously-skip-permissions`, `plan`/`investigate` → `--permission-mode plan`
-- Add system prompt flag if available
-- Tee to `$LOG_DIR` if set, otherwise stdout
-- Capture `EXIT_CODE`
-
-**`MODE=interactive`**:
-- Start claude in tmux: `tmux -u new-session -d -s claude 'claude --dangerously-skip-permissions'`
-- `exec ttyd --writable -p "${PORT:-7681}" tmux attach -t claude`
-- Never returns — container stays alive until killed
-
-Status: [ ] TODO
-
-### 3h. `post-run.sh` — After Claude Exits
-Controlled by `POST_RUN` env var:
-
-| Value | Behavior | Used by |
-|-------|----------|---------|
-| `create-pr` | Commit all (or logs-only on fail), push, remove logs, push, `gh pr create` | job |
-| `rebase-push` | `git add -A`, commit, rebase on base branch (AI merge-back fallback), force-push | headless |
-| `none` (default) | Write `endedAt` to meta.json if logging, exit | cluster-worker, investigate |
-
-Status: [ ] TODO
-
----
-
-## Step 4: Update Callers
-
-After the image works, update these files to use the new image + env var interface:
-- `lib/tools/docker.js` — `runContainer`, `runCodeWorkspaceContainer`, `runHeadlessCodeContainer`, `runClusterWorkerContainer`
-- `lib/cluster/execute.js` — cluster worker spawning
-- `lib/code/actions.js` — workspace lifecycle
-- `templates/.github/workflows/run-job.yml` — job workflow
+Note: `COPY` doesn't follow symlinks by default — need to verify Docker build context preserves them, or create symlinks in a `RUN` step.
 
 Status: [ ] TODO
 
@@ -192,50 +133,64 @@ Status: [ ] TODO
 
 ## Env Var Reference
 
-### Core Mode Selection
-| Variable | Values | Default | Purpose |
-|----------|--------|---------|---------|
-| `MODE` | `headless`, `interactive` | `headless` | Execution mode |
-| `PERMISSION` | `dangerous`, `plan`, `investigate` | `dangerous` | Claude Code permission level |
-| `GIT_STRATEGY` | `clone-job`, `clone-or-reset`, `bind-mount` | `bind-mount` | How workspace gets code |
-| `POST_RUN` | `create-pr`, `rebase-push`, `none` | `none` | What happens after claude exits |
+### Primary
+| Variable | Values | Purpose |
+|----------|--------|---------|
+| `RUNTIME` | `job`, `headless`, `workspace`, `cluster-worker` | Selects which script folder to execute |
 
 ### Git / Repo
-| Variable | Required | Purpose |
-|----------|----------|---------|
-| `REPO_URL` | For clone-job | Full git clone URL |
-| `REPO` | For clone-or-reset | GitHub `owner/repo` slug |
-| `BRANCH` | For clone modes | Branch to clone/checkout |
-| `FEATURE_BRANCH` | No | Feature branch to create/checkout |
+| Variable | Used by | Purpose |
+|----------|---------|---------|
+| `GH_TOKEN` | all | GitHub CLI auth |
+| `REPO_URL` | job | Full git clone URL |
+| `REPO` | headless, workspace | GitHub `owner/repo` slug |
+| `BRANCH` | job, headless, workspace | Branch to clone/checkout |
+| `FEATURE_BRANCH` | headless, workspace | Feature branch to create/checkout |
 
-### Auth
-| Variable | Required | Purpose |
-|----------|----------|---------|
-| `GH_TOKEN` | For git ops | GitHub CLI auth |
-| `CLAUDE_CODE_OAUTH_TOKEN` | Yes | Claude Code auth |
-| `SECRETS` | No | JSON blob of additional env vars |
-| `LLM_SECRETS` | No | JSON blob of LLM-specific env vars |
+### Auth / Secrets
+| Variable | Used by | Purpose |
+|----------|---------|---------|
+| `CLAUDE_CODE_OAUTH_TOKEN` | all | Claude Code OAuth token |
+| `SECRETS` | job | JSON blob of AGENT_* env vars (from GitHub Actions) |
+| `LLM_SECRETS` | job | JSON blob of AGENT_LLM_* env vars (from GitHub Actions) |
 
 ### Claude Code
-| Variable | Required | Purpose |
-|----------|----------|---------|
-| `PROMPT` | For headless | The task prompt (`-p` flag) |
-| `SYSTEM_PROMPT` | No | Inline system prompt text |
-| `SYSTEM_PROMPT_FILES` | No | Comma-separated config MD filenames to concat |
-| `LLM_MODEL` | No | Model override |
-
-### Optional Features
-| Variable | Default | Purpose |
+| Variable | Used by | Purpose |
 |----------|---------|---------|
-| `ENABLE_SKILLS` | `0` | Install npm deps in skills/active/* |
-| `ENABLE_PLAYWRIGHT` | `0` | Register Playwright MCP server |
-| `CHAT_CONTEXT` | — | JSON planning conversation for SessionStart hook |
-| `LOG_DIR` | — | Directory for session logs (tee stdout/stderr) |
-| `PORT` | `7681` | ttyd port (interactive mode only) |
+| `PROMPT` | headless, cluster-worker | Task prompt (`-p` flag) |
+| `SYSTEM_PROMPT` | cluster-worker | Inline system prompt text (`--append-system-prompt`) |
+| `LLM_MODEL` | job | Model override (`--model`) |
+| `PERMISSION` | headless | `plan`, `investigate`, or `dangerous` (default) |
+| `PLAN_MODE` | cluster-worker | `1` = use `--permission-mode plan` |
 
-### Job-Specific (POST_RUN=create-pr)
-| Variable | Purpose |
-|----------|---------|
-| `JOB_TITLE` | PR title and commit message |
-| `JOB_DESCRIPTION` | PR body and prompt suffix |
-| `JOB_ID` | Log directory name (extracted from branch if not set) |
+### Runtime-Specific
+| Variable | Used by | Purpose |
+|----------|---------|---------|
+| `CHAT_CONTEXT` | workspace | JSON planning conversation for SessionStart hook |
+| `PORT` | workspace | ttyd port (default 7681) |
+| `LOG_DIR` | cluster-worker | Directory for session logs |
+| `JOB_TITLE` | job | PR title and commit message |
+| `JOB_DESCRIPTION` | job | PR body and prompt content |
+| `JOB_ID` | job | Log directory name (fallback: extracted from branch) |
+
+---
+
+## Build Order
+
+1. [ ] **Dockerfile** — single superset image
+2. [ ] **common/ scripts** — shared logic (setup-git, claude-auth, claude-trust, clone-or-reset, feature-branch, run-claude-headless)
+3. [ ] **job/ runtime** — real scripts + symlinks to common
+4. [ ] **headless/ runtime** — real scripts + symlinks to common
+5. [ ] **workspace/ runtime** — real scripts + symlinks to common
+6. [ ] **cluster-worker/ runtime** — real scripts + symlinks to common
+7. [ ] **entrypoint.sh** — the for-loop orchestrator
+8. [ ] **Build & test** — `docker build`, test each RUNTIME value
+9. [ ] **Update callers** — `lib/tools/docker.js`, `lib/cluster/execute.js`, `lib/code/actions.js`, `run-job.yml`
+10. [ ] **Remove old images** — `docker/claude-code-job/`, `docker/claude-code-headless/`, `docker/claude-code-workspace/`, `docker/claude-code-cluster-worker/`
+
+---
+
+## Open Questions
+
+- **Docker COPY + symlinks**: Docker's `COPY` may not preserve symlinks. May need to create symlinks in a `RUN` step instead of relying on the build context. Need to test.
+- **Investigate mode**: Currently a sub-mode of headless (same scripts but skips feature branch + skips post-run git). Could be its own runtime folder or stay as a `PERMISSION=investigate` check in the headless scripts. TBD.
