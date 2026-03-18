@@ -36,7 +36,23 @@ function saveTabOrder(id, tabs) {
     } else {
       localStorage.removeItem(getStorageKey(id));
     }
+    // Persist editor tabs separately (they have no container process to scan)
+    const editorTabs = tabs.filter((t) => t.type === 'editor').map((t) => ({ id: t.id, label: t.label }));
+    if (editorTabs.length > 0) {
+      localStorage.setItem(`code-editor-tabs-${id}`, JSON.stringify(editorTabs));
+    } else {
+      localStorage.removeItem(`code-editor-tabs-${id}`);
+    }
   } catch {}
+}
+
+function loadEditorTabs(id) {
+  try {
+    const raw = localStorage.getItem(`code-editor-tabs-${id}`);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
 }
 
 function loadTabOrder(id) {
@@ -86,10 +102,15 @@ export default function CodePage({ session, codeWorkspaceId }) {
   // Restore existing sessions on mount
   useEffect(() => {
     listTerminalSessions(codeWorkspaceId).then((result) => {
-      if (result?.success && result.sessions?.length > 0) {
+      const terminalTabs = result?.success && result.sessions?.length > 0
+        ? result.sessions.map((s) => ({ id: s.id, label: s.label, type: s.type || 'shell' }))
+        : [];
+      const editorTabs = loadEditorTabs(codeWorkspaceId).map((t) => ({ id: t.id, label: t.label, type: 'editor' }));
+      if (terminalTabs.length > 0 || editorTabs.length > 0) {
         const restored = [
           { id: PRIMARY_TAB_ID, label: 'Code', type: 'code', primary: true },
-          ...result.sessions.map((s) => ({ id: s.id, label: s.label, type: s.type || 'shell' })),
+          ...terminalTabs,
+          ...editorTabs,
         ];
         const storedOrder = loadTabOrder(codeWorkspaceId);
         setTabs(reorderByStored(restored, storedOrder));
@@ -341,7 +362,7 @@ export default function CodePage({ session, codeWorkspaceId }) {
                 }}
               >
                 {tab.type === 'editor' ? (
-                  <EditorView codeWorkspaceId={codeWorkspaceId} />
+                  <EditorView codeWorkspaceId={codeWorkspaceId} tabId={tab.id} isActive={activeTabId === tab.id} />
                 ) : (
                   <TerminalView
                     codeWorkspaceId={codeWorkspaceId}

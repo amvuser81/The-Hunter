@@ -1,26 +1,9 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { useTheme } from 'next-themes';
 import Editor from '@monaco-editor/react';
 import { listDirectory, readFile, writeFile, createFile, createDirectory, deleteFile, renameFile } from './actions.js';
-
-// ---------------------------------------------------------------------------
-// Theme
-// ---------------------------------------------------------------------------
-
-const THEME_KEY = 'terminal-theme'; // share with terminal-view
-
-function getStoredTheme() {
-  try { return localStorage.getItem(THEME_KEY) || 'dark'; } catch { return 'dark'; }
-}
-
-function resolveMonacoTheme(mode) {
-  if (mode === 'light') return 'light';
-  if (mode === 'system') {
-    if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: light)').matches) return 'light';
-  }
-  return 'vs-dark';
-}
 
 // ---------------------------------------------------------------------------
 // Language detection from file extension
@@ -111,14 +94,83 @@ function ContextMenu({ x, y, items, onClose }) {
         ) : (
           <button
             key={i}
-            className="w-full text-left px-3 py-1.5 text-xs hover:bg-accent transition-colors disabled:opacity-50"
-            onClick={() => { item.action(); onClose(); }}
+            className={`w-full text-left px-3 py-1.5 text-xs hover:bg-accent transition-colors disabled:opacity-50 ${item.destructive ? 'text-destructive' : ''}`}
+            onClick={() => { item.action(); if (!item.keepOpen) onClose(); }}
             disabled={item.disabled}
           >
             {item.label}
           </button>
         )
       )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Inline create input (replaces prompt() for new file/folder)
+// ---------------------------------------------------------------------------
+
+function InlineCreateInput({ depth, type, onSubmit, onCancel }) {
+  const [value, setValue] = useState('');
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  const handleSubmit = useCallback(() => {
+    const trimmed = value.trim();
+    if (trimmed) {
+      onSubmit(trimmed);
+    } else {
+      onCancel();
+    }
+  }, [value, onSubmit, onCancel]);
+
+  return (
+    <div
+      className="flex items-center gap-1 px-1 py-0.5 text-xs"
+      style={{ paddingLeft: depth * 16 + 4 }}
+    >
+      <span className="w-3 shrink-0" />
+      <span className="shrink-0 text-muted-foreground">
+        {type === 'directory' ? <FolderIcon size={14} /> : <FileIcon size={14} />}
+      </span>
+      <input
+        ref={inputRef}
+        className="flex-1 bg-input border border-border rounded px-1 py-0 text-xs outline-none focus:ring-1 focus:ring-primary"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={handleSubmit}
+        onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit(); if (e.key === 'Escape') onCancel(); }}
+        placeholder={type === 'directory' ? 'folder name' : 'file name'}
+      />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Error banner (replaces alert() calls)
+// ---------------------------------------------------------------------------
+
+function ErrorBanner({ message, onDismiss }) {
+  useEffect(() => {
+    const timer = setTimeout(onDismiss, 5000);
+    return () => clearTimeout(timer);
+  }, [onDismiss]);
+
+  return (
+    <div className="flex items-center justify-between px-3 py-2 text-xs bg-destructive/10 text-destructive border-b border-destructive/30 shrink-0">
+      <span>{message}</span>
+      <button
+        className="ml-2 p-0.5 rounded hover:bg-destructive/20 transition-colors"
+        onClick={onDismiss}
+      >
+        <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+          <line x1="4" y1="4" x2="12" y2="12" />
+          <line x1="12" y1="4" x2="4" y2="12" />
+        </svg>
+      </button>
     </div>
   );
 }
@@ -134,9 +186,17 @@ function FileTreeNode({ entry, depth, workspaceId, parentPath, onOpenFile, onRef
   const [contextMenu, setContextMenu] = useState(null);
   const [renaming, setRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState('');
+  const [creating, setCreating] = useState(null); // { type: 'file' | 'directory' } or null
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const deleteTimerRef = useRef(null);
 
   const fullPath = parentPath ? `${parentPath}/${entry.name}` : entry.name;
   const isDir = entry.type === 'directory';
+
+  // Clean up delete confirmation timer
+  useEffect(() => {
+    return () => { if (deleteTimerRef.current) clearTimeout(deleteTimerRef.current); };
+  }, []);
 
   const loadChildren = useCallback(async () => {
     setLoading(true);
@@ -175,31 +235,47 @@ function FileTreeNode({ entry, depth, workspaceId, parentPath, onOpenFile, onRef
     setRenaming(false);
   }, [renameValue, entry.name, parentPath, workspaceId, fullPath, onRefresh]);
 
+  const handleCreateSubmit = useCallback(async (name) => {
+    if (!creating) return;
+    const newPath = `${fullPath}/${name}`;
+    if (creating.type === 'directory') {
+      await createDirectory(workspaceId, newPath);
+    } else {
+      await createFile(workspaceId, newPath);
+    }
+    setCreating(null);
+    loadChildren();
+  }, [creating, fullPath, workspaceId, loadChildren]);
+
+  const handleDeleteClick = useCallback(async () => {
+    if (!confirmingDelete) {
+      setConfirmingDelete(true);
+      deleteTimerRef.current = setTimeout(() => setConfirmingDelete(false), 3000);
+      return;
+    }
+    // Second click — actually delete
+    if (deleteTimerRef.current) clearTimeout(deleteTimerRef.current);
+    setConfirmingDelete(false);
+    await deleteFile(workspaceId, fullPath);
+    onRefresh();
+  }, [confirmingDelete, workspaceId, fullPath, onRefresh]);
+
   const contextItems = [
     ...(isDir ? [
-      { label: 'New File...', action: async () => {
-        const name = prompt('File name:');
-        if (name) {
-          await createFile(workspaceId, `${fullPath}/${name}`);
-          if (expanded) loadChildren(); else { setExpanded(true); loadChildren(); }
-        }
+      { label: 'New File...', action: () => {
+        setExpanded(true);
+        if (children === null) loadChildren();
+        setCreating({ type: 'file' });
       }},
-      { label: 'New Folder...', action: async () => {
-        const name = prompt('Folder name:');
-        if (name) {
-          await createDirectory(workspaceId, `${fullPath}/${name}`);
-          if (expanded) loadChildren(); else { setExpanded(true); loadChildren(); }
-        }
+      { label: 'New Folder...', action: () => {
+        setExpanded(true);
+        if (children === null) loadChildren();
+        setCreating({ type: 'directory' });
       }},
       { separator: true },
     ] : []),
     { label: 'Rename...', action: () => { setRenameValue(entry.name); setRenaming(true); }},
-    { label: 'Delete', action: async () => {
-      if (confirm(`Delete "${entry.name}"?`)) {
-        await deleteFile(workspaceId, fullPath);
-        onRefresh();
-      }
-    }},
+    { label: confirmingDelete ? 'Confirm?' : 'Delete', destructive: true, keepOpen: !confirmingDelete, action: handleDeleteClick },
   ];
 
   return (
@@ -246,13 +322,21 @@ function FileTreeNode({ entry, depth, workspaceId, parentPath, onOpenFile, onRef
           x={contextMenu.x}
           y={contextMenu.y}
           items={contextItems}
-          onClose={() => setContextMenu(null)}
+          onClose={() => { setContextMenu(null); setConfirmingDelete(false); }}
         />
       )}
 
-      {isDir && expanded && children && (
+      {isDir && expanded && (
         <div>
-          {children.map((child) => (
+          {creating && (
+            <InlineCreateInput
+              depth={depth + 1}
+              type={creating.type}
+              onSubmit={handleCreateSubmit}
+              onCancel={() => setCreating(null)}
+            />
+          )}
+          {children && children.map((child) => (
             <FileTreeNode
               key={child.name}
               entry={child}
@@ -263,7 +347,7 @@ function FileTreeNode({ entry, depth, workspaceId, parentPath, onOpenFile, onRef
               onRefresh={() => loadChildren()}
             />
           ))}
-          {children.length === 0 && (
+          {children && children.length === 0 && !creating && (
             <div className="text-xs text-muted-foreground italic" style={{ paddingLeft: (depth + 1) * 16 + 20 }}>
               Empty
             </div>
@@ -278,25 +362,42 @@ function FileTreeNode({ entry, depth, workspaceId, parentPath, onOpenFile, onRef
 // EditorView main component
 // ---------------------------------------------------------------------------
 
-export default function EditorView({ codeWorkspaceId }) {
-  const [theme, setTheme] = useState('dark');
+function editorStorageKey(tabId) {
+  return `code-editor-files-${tabId}`;
+}
+
+function saveEditorState(tabId, openFiles, activeFilePath) {
+  try {
+    const data = {
+      files: openFiles.map((f) => ({ path: f.path, name: f.name })),
+      active: activeFilePath,
+    };
+    localStorage.setItem(editorStorageKey(tabId), JSON.stringify(data));
+  } catch {}
+}
+
+function loadEditorState(tabId) {
+  try {
+    const raw = localStorage.getItem(editorStorageKey(tabId));
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export default function EditorView({ codeWorkspaceId, tabId, isActive }) {
+  const { resolvedTheme } = useTheme();
   const [rootEntries, setRootEntries] = useState(null);
-  const [openFiles, setOpenFiles] = useState([]); // [{path, name, content, originalContent, language}]
+  const [openFiles, setOpenFiles] = useState([]); // [{path, name, content, originalContent, language, diskChanged}]
   const [activeFilePath, setActiveFilePath] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
   const [treeWidth, setTreeWidth] = useState(240);
   const [rootContextMenu, setRootContextMenu] = useState(null);
+  const [creatingRoot, setCreatingRoot] = useState(null); // { type: 'file' | 'directory' } or null
   const resizing = useRef(false);
-
-  // Load theme from shared localStorage
-  useEffect(() => {
-    setTheme(getStoredTheme());
-    function onStorage(e) {
-      if (e.key === THEME_KEY) setTheme(e.newValue || 'dark');
-    }
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
-  }, []);
+  const prevActiveRef = useRef(isActive);
+  const restoredRef = useRef(false);
 
   // Load root directory
   const loadRoot = useCallback(async () => {
@@ -307,6 +408,70 @@ export default function EditorView({ codeWorkspaceId }) {
   }, [codeWorkspaceId]);
 
   useEffect(() => { loadRoot(); }, [loadRoot]);
+
+  // Restore previously open files on mount
+  useEffect(() => {
+    if (restoredRef.current) return;
+    restoredRef.current = true;
+    const saved = loadEditorState(tabId);
+    if (!saved || !saved.files?.length) return;
+
+    (async () => {
+      const restored = [];
+      for (const f of saved.files) {
+        const result = await readFile(codeWorkspaceId, f.path);
+        if (result?.success) {
+          restored.push({
+            path: f.path,
+            name: f.name,
+            content: result.content,
+            originalContent: result.content,
+            language: detectLanguage(f.name),
+            diskChanged: false,
+          });
+        }
+      }
+      if (restored.length > 0) {
+        setOpenFiles(restored);
+        // Restore active file if it was successfully loaded, otherwise use last file
+        const activeExists = restored.find((f) => f.path === saved.active);
+        setActiveFilePath(activeExists ? saved.active : restored[restored.length - 1].path);
+      }
+    })();
+  }, [tabId, codeWorkspaceId]);
+
+  // Persist open files and active path when they change
+  useEffect(() => {
+    if (restoredRef.current) {
+      saveEditorState(tabId, openFiles, activeFilePath);
+    }
+  }, [tabId, openFiles, activeFilePath]);
+
+  // Check for disk changes when editor tab becomes active
+  useEffect(() => {
+    const wasActive = prevActiveRef.current;
+    prevActiveRef.current = isActive;
+
+    if (isActive && !wasActive && openFiles.length > 0) {
+      // Re-read all open files in background to check for changes
+      openFiles.forEach(async (file) => {
+        const result = await readFile(codeWorkspaceId, file.path);
+        if (result?.success && result.content !== file.originalContent) {
+          setOpenFiles((prev) => prev.map((f) =>
+            f.path === file.path ? { ...f, diskChanged: true, diskContent: result.content } : f
+          ));
+        }
+      });
+    }
+  }, [isActive, codeWorkspaceId]); // intentionally exclude openFiles to avoid re-triggering
+
+  // Reload a file from disk (user clicked "Reload")
+  const handleReloadFile = useCallback((path) => {
+    setOpenFiles((prev) => prev.map((f) => {
+      if (f.path !== path || !f.diskContent) return f;
+      return { ...f, content: f.diskContent, originalContent: f.diskContent, diskChanged: false, diskContent: undefined };
+    }));
+  }, []);
 
   // Open a file
   const handleOpenFile = useCallback(async (path, name) => {
@@ -319,12 +484,12 @@ export default function EditorView({ codeWorkspaceId }) {
 
     const result = await readFile(codeWorkspaceId, path);
     if (!result?.success) {
-      alert(result?.message || 'Failed to read file');
+      setError(result?.message || 'Failed to read file');
       return;
     }
 
     const language = detectLanguage(name);
-    setOpenFiles((prev) => [...prev, { path, name, content: result.content, originalContent: result.content, language }]);
+    setOpenFiles((prev) => [...prev, { path, name, content: result.content, originalContent: result.content, language, diskChanged: false }]);
     setActiveFilePath(path);
   }, [codeWorkspaceId, openFiles]);
 
@@ -351,9 +516,9 @@ export default function EditorView({ codeWorkspaceId }) {
     setSaving(true);
     const result = await writeFile(codeWorkspaceId, file.path, file.content);
     if (result?.success) {
-      setOpenFiles((prev) => prev.map((f) => f.path === file.path ? { ...f, originalContent: f.content } : f));
+      setOpenFiles((prev) => prev.map((f) => f.path === file.path ? { ...f, originalContent: f.content, diskChanged: false, diskContent: undefined } : f));
     } else {
-      alert(result?.message || 'Failed to save');
+      setError(result?.message || 'Failed to save');
     }
     setSaving(false);
   }, [codeWorkspaceId, activeFilePath, openFiles]);
@@ -393,8 +558,20 @@ export default function EditorView({ codeWorkspaceId }) {
     document.addEventListener('mouseup', onMouseUp);
   }, [treeWidth]);
 
+  // Root-level create submit
+  const handleRootCreateSubmit = useCallback(async (name) => {
+    if (!creatingRoot) return;
+    if (creatingRoot.type === 'directory') {
+      await createDirectory(codeWorkspaceId, name);
+    } else {
+      await createFile(codeWorkspaceId, name);
+    }
+    setCreatingRoot(null);
+    loadRoot();
+  }, [creatingRoot, codeWorkspaceId, loadRoot]);
+
   const activeFile = openFiles.find((f) => f.path === activeFilePath);
-  const monacoTheme = resolveMonacoTheme(theme);
+  const monacoTheme = resolvedTheme === 'dark' ? 'vs-dark' : 'light';
 
   const handleRootContextMenu = useCallback((e) => {
     e.preventDefault();
@@ -425,13 +602,21 @@ export default function EditorView({ codeWorkspaceId }) {
           className="flex-1 overflow-y-auto overflow-x-hidden py-1"
           onContextMenu={handleRootContextMenu}
         >
+          {creatingRoot && (
+            <InlineCreateInput
+              depth={0}
+              type={creatingRoot.type}
+              onSubmit={handleRootCreateSubmit}
+              onCancel={() => setCreatingRoot(null)}
+            />
+          )}
           {rootEntries === null ? (
             <div className="px-3 py-2">
               <div className="h-4 bg-border/50 rounded-md animate-pulse mb-2" />
               <div className="h-4 bg-border/50 rounded-md animate-pulse mb-2" />
               <div className="h-4 bg-border/50 rounded-md animate-pulse" />
             </div>
-          ) : rootEntries.length === 0 ? (
+          ) : rootEntries.length === 0 && !creatingRoot ? (
             <div className="px-3 py-4 text-xs text-muted-foreground italic text-center">No files</div>
           ) : (
             rootEntries.map((entry) => (
@@ -453,14 +638,8 @@ export default function EditorView({ codeWorkspaceId }) {
             x={rootContextMenu.x}
             y={rootContextMenu.y}
             items={[
-              { label: 'New File...', action: async () => {
-                const name = prompt('File name:');
-                if (name) { await createFile(codeWorkspaceId, name); loadRoot(); }
-              }},
-              { label: 'New Folder...', action: async () => {
-                const name = prompt('Folder name:');
-                if (name) { await createDirectory(codeWorkspaceId, name); loadRoot(); }
-              }},
+              { label: 'New File...', action: () => setCreatingRoot({ type: 'file' }) },
+              { label: 'New Folder...', action: () => setCreatingRoot({ type: 'directory' }) },
             ]}
             onClose={() => setRootContextMenu(null)}
           />
@@ -479,20 +658,34 @@ export default function EditorView({ codeWorkspaceId }) {
         {openFiles.length > 0 && (
           <div className="flex items-center gap-0 bg-muted/30 border-b border-border overflow-x-auto shrink-0">
             {openFiles.map((file) => {
-              const isActive = file.path === activeFilePath;
+              const isFileActive = file.path === activeFilePath;
               const isModified = file.content !== file.originalContent;
               return (
                 <div
                   key={file.path}
                   className={`group flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono cursor-pointer border-r border-border transition-colors ${
-                    isActive
+                    isFileActive
                       ? 'bg-background text-foreground'
                       : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                   }`}
                   onClick={() => setActiveFilePath(file.path)}
                 >
-                  {isModified && <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />}
+                  {file.diskChanged && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-yellow-500 shrink-0" title="Changed on disk" />
+                  )}
+                  {!file.diskChanged && isModified && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                  )}
                   <span className="truncate max-w-[150px]">{file.name}</span>
+                  {file.diskChanged && (
+                    <button
+                      className="ml-0.5 rounded-sm px-1 py-0 text-[10px] text-yellow-500 hover:bg-yellow-500/20 opacity-0 group-hover:opacity-100 transition-all"
+                      onClick={(e) => { e.stopPropagation(); handleReloadFile(file.path); }}
+                      title="Reload from disk"
+                    >
+                      Reload
+                    </button>
+                  )}
                   <button
                     className="ml-1 rounded-sm p-0.5 opacity-0 group-hover:opacity-100 hover:bg-destructive/20 hover:text-destructive transition-all"
                     onClick={(e) => { e.stopPropagation(); handleCloseFile(file.path); }}
@@ -510,6 +703,11 @@ export default function EditorView({ codeWorkspaceId }) {
               <span className="px-2 text-xs text-muted-foreground">Saving...</span>
             )}
           </div>
+        )}
+
+        {/* Error banner */}
+        {error && (
+          <ErrorBanner message={error} onDismiss={() => setError(null)} />
         )}
 
         {/* Editor or empty state */}
