@@ -298,7 +298,10 @@ function WorkspaceCommandButton({ workspaceId, diffStats, onDiffStatsRefresh, on
   const handleRun = useCallback(async () => {
     if (commandRunning) return;
 
-    if (!(diffStats?.insertions || 0) && !(diffStats?.deletions || 0)) {
+    // Refresh diff stats and check for changes before running
+    const fresh = await onDiffStatsRefresh?.();
+    const stats = fresh || diffStats;
+    if (!(stats?.insertions || 0) && !(stats?.deletions || 0)) {
       setDialogOpen(true);
       setCommandOutput('You have no changes.');
       setCommandExitCode(1);
@@ -321,7 +324,7 @@ function WorkspaceCommandButton({ workspaceId, diffStats, onDiffStatsRefresh, on
     } finally {
       setCommandRunning(false);
     }
-  }, [workspaceId, selectedCommand, commandRunning]);
+  }, [workspaceId, selectedCommand, commandRunning, diffStats, onDiffStatsRefresh]);
 
   const handleDialogClose = useCallback(() => {
     setDialogOpen(false);

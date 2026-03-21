@@ -216,13 +216,14 @@ export function Chat({ chatId, initialMessages = [], workspace = null }) {
       workspace={workspaceState}
       isInteractiveActive={isInteractiveActive}
       diffStats={diffStats}
-      onDiffStatsRefresh={() => {
-        if (workspaceState?.id) {
-          fetch(`/stream/workspace-diff/${workspaceState.id}`)
-            .then(r => r.json())
-            .then(r => { if (r.success) setDiffStats(r); })
-            .catch(() => {});
-        }
+      onDiffStatsRefresh={async () => {
+        if (!workspaceState?.id) return null;
+        try {
+          const r = await fetch(`/stream/workspace-diff/${workspaceState.id}`);
+          const data = await r.json();
+          if (data.success) { setDiffStats(data); return data; }
+        } catch {}
+        return null;
       }}
       onShowDiff={() => setShowDiff(true)}
       onWorkspaceUpdate={(containerName) => {
