@@ -15,7 +15,7 @@
 skills/*/node_modules/
 
 # Database
-/data/
+/templates/data/
 
 # Node
 node_modules/
