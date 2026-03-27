@@ -20,7 +20,7 @@ All event handler logic, API routes, library code, and core functionality lives 
 The `templates/` directory contains **only files that get scaffolded into user projects** via `npx thepopebot init`. Templates are for user-editable configuration and thin wiring — things users are expected to customize or override. Never add core logic to templates.
 
 **When adding or modifying event handler code, always put it in the package itself (e.g., `api/`, `lib/`), not in `templates/`.** Templates should only contain:
-- Configuration files users edit (`config/SOUL.md`, `config/CRONS.json`, etc.)
+- Configuration files users edit (`config/agent-job/SOUL.md`, `config/CRONS.json`, etc.)
 - GitHub Actions workflows
 - Docker compose (`docker-compose.yml`)
 - CLAUDE.md files for AI assistant context in user projects

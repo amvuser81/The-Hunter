@@ -23,11 +23,11 @@ All actions use `requireAuth()` with ownership checks: `getCodeWorkspaces()`, `c
 
 ## Multi-Agent Backends
 
-Code workspaces support multiple coding agent backends, selected via the `codingAgent` column on the `codeWorkspaces` table (defaults to `claude-code`).
+Code workspaces support multiple coding agent backends. Agent selection is **global** via the `CODING_AGENT` config key (DB-backed, defaults to `claude-code`). There is no per-workspace agent selection — all workspaces use the globally configured agent.
 
 **Supported agents**: `claude-code`, `pi`, `gemini-cli`, `codex-cli`, `opencode`. Each uses a different Docker image variant (`docker/coding-agent/Dockerfile.*`) and agent-specific setup/auth scripts in `docker/coding-agent/scripts/`.
 
-**Agent selection**: Users configure agents via the Coding Agents admin page (`/admin/event-handler/coding-agents`). The `codingAgent` value is passed to `runInteractiveContainer()` which selects the appropriate Docker image and runtime scripts.
+**Configuration**: Users configure agents via `/admin/event-handler/coding-agents` — enable/disable agents, set per-agent auth mode (OAuth vs API key), provider, and model. `setCodingAgentDefault()` sets the global default. `buildAgentAuthEnv()` in `lib/tools/docker.js` resolves credentials from the settings DB at container launch time.
 
 **Container streaming**: `lib/containers/stream.js` provides an SSE endpoint (`/stream/containers`) that polls Docker for container stats every 3 seconds. Used by the Containers admin page for live monitoring.
 

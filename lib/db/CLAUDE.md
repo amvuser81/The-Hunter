@@ -23,9 +23,9 @@ Key files: `schema.js` (source of truth), `drizzle/` (generated migrations), `dr
 | Table | Purpose |
 |-------|---------|
 | `users` | Admin accounts (email, bcrypt password hash, role) |
-| `chats` | Chat sessions (user_id, title, starred, code_workspace_id, timestamps) |
+| `chats` | Chat sessions (user_id, title, starred, chat_mode, code_workspace_id, timestamps) |
 | `messages` | Chat messages (chat_id, role, content) |
-| `code_workspaces` | Code workspace containers (user_id, container_name, repo, branch, coding_agent, starred) |
+| `code_workspaces` | Code workspace containers (user_id, container_name, repo, branch, feature_branch, title, last_interactive_commit, starred, has_changes) |
 | `notifications` | Job completion notifications (notification text, payload, read status) |
 | `subscriptions` | Channel subscriptions (platform, channel_id) |
 | `clusters` | Worker clusters (user_id, name, system_prompt, folders, enabled, starred) |
@@ -44,6 +44,23 @@ Key files: `schema.js` (source of truth), `drizzle/` (generated migrations), `dr
 
 **Encryption**: `lib/db/crypto.js` provides AES-256-GCM encryption using `AUTH_SECRET` as the key derivation source (PBKDF2, 100k iterations). Token values are stored as JSON `{name, token}` where `token` is the encrypted ciphertext.
 
+## Settings Table Types
+
+The `settings` table stores all application config (not just key-value pairs). Four `type` values:
+
+| Type | Storage | Purpose |
+|------|---------|---------|
+| `config` | Plaintext | LLM preferences, agent config, feature flags |
+| `config_secret` | AES-256-GCM encrypted | API keys, tokens, GitHub secrets |
+| `llm_provider` | Encrypted JSON | Custom OpenAI-compatible provider configs (baseUrl, apiKey, model) |
+| `agent_job_secret` | Encrypted | Custom env vars injected into agent containers |
+
+Key functions in `lib/db/config.js`: `getConfigValue()`, `setConfigValue()`, `getConfigSecret()`, `setConfigSecret()`, `getCustomProvider()`, `getAllAgentJobSecrets()`.
+
+OAuth tokens for coding agent backends are stored as `config_secret` with LRU rotation via `lib/db/oauth-tokens.js`.
+
 ## Notable Columns
 
-- `codeWorkspaces.codingAgent` — defaults to `'claude-code'`. Selects which agent backend runs in the workspace (claude-code, pi, gemini-cli, codex-cli, opencode).
+- `chats.chatMode` — `'agent'` (default) or `'code'`. Determines which agent singleton and tools are used.
+- `codeWorkspaces.featureBranch` — tracks the git feature branch for the workspace session.
+- `codeWorkspaces.hasChanges` — flag set when workspace has uncommitted changes.

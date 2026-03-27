@@ -12,6 +12,8 @@ Calls Docker Engine API directly through `/var/run/docker.sock` using Node's `ht
 
 **Image pull on demand**: Checks if image exists locally before pulling. Avoids pre-pulling at startup.
 
+**`buildAgentAuthEnv(agent)`**: Resolves coding agent type → auth environment variables from the settings DB. Handles OAuth vs API key auth modes, multi-provider resolution (builtin + custom), and model overrides. Each agent type (claude-code, pi, gemini-cli, codex-cli, opencode) has its own credential resolution path. OAuth tokens use LRU rotation via `getNextOAuthToken()`. All credentials come from the DB, not `.env` or GitHub secrets.
+
 ## create-agent-job.js — Agent Job Creation
 
 **Structured output for titles**: Uses `model.withStructuredOutput(z.object({ title }))` to force JSON output and avoid thinking-token leaks with extended-thinking models. Two-tier fallback: LLM → truncated description → first non-empty line with markdown heading syntax stripped.

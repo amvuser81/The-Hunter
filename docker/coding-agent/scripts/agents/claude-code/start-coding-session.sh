@@ -1,8 +1,14 @@
 #!/bin/bash
-# Called by ttyd on each connection — resumes session if valid, otherwise starts fresh
+# Called by ttyd on each connection — uses tmux to keep Claude alive between disconnects
 
-cd /home/coding-agent/workspace
+SESSION_NAME="claude-${PORT}"
 
+# Already running — just reattach
+if tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
+    exec tmux attach -t "$SESSION_NAME"
+fi
+
+# Build Claude args
 SESSION_FILE="/home/coding-agent/.claude-ttyd-sessions/${PORT}"
 CLAUDE_ARGS="claude --dangerously-skip-permissions"
 
@@ -13,4 +19,6 @@ if [ -f "$SESSION_FILE" ]; then
     fi
 fi
 
-exec $CLAUDE_ARGS
+# Start tmux session with Claude, then attach
+tmux -u new-session -d -s "$SESSION_NAME" -c /home/coding-agent/workspace $CLAUDE_ARGS
+exec tmux attach -t "$SESSION_NAME"
