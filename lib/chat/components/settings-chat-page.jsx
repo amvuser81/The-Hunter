@@ -669,6 +669,7 @@ function CustomProviderDialog({ open, initial, onSave, onCancel }) {
           <label className="text-xs font-medium mb-1 block">Base URL</label>
           <input type="text" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder="https://api.together.xyz/v1"
             className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-foreground" />
+          <p className="text-xs text-muted-foreground mt-1">For local Docker services use <span className="font-mono">http://host.docker.internal:PORT/v1</span></p>
         </div>
         <div>
           <label className="text-xs font-medium mb-1 block">API Key <span className="text-muted-foreground font-normal">(optional)</span></label>
