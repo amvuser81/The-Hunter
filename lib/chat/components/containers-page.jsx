@@ -474,7 +474,7 @@ export function ContainersPage({ session }) {
   const [logsContainer, setLogsContainer] = useState(null);
   const esRef = useRef(null);
 
-  const PAGE_SIZE = 25;
+  const PAGE_SIZE = 10; // matches perPage in getRunnersStatus
 
   // ── Docker containers via SSE ──
 

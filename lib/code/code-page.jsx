@@ -310,7 +310,7 @@ export default function CodePage({ session, codeWorkspaceId }) {
             <ChatHeader workspaceId={codeWorkspaceId} />
 
             {/* Tab bar */}
-            <div className="flex items-end gap-0 px-4 bg-muted/30 border-b border-border shrink-0 overflow-hidden">
+            <div className="flex items-end gap-0 px-4 bg-muted/30 border-b border-border shrink-0 overflow-x-auto scrollbar-hide">
               {/* Primary Code tab — pinned, not draggable */}
               <PinnedTab
                 tab={tabs[0]}
@@ -337,30 +337,30 @@ export default function CodePage({ session, codeWorkspaceId }) {
 
               {/* Loading placeholder tabs */}
               {creatingCode && (
-                <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium font-mono text-muted-foreground">
+                <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium font-mono text-muted-foreground shrink-0 whitespace-nowrap">
                   <SpinnerIcon size={12} />
                   <span>Code...</span>
                 </div>
               )}
               {creatingShell && (
-                <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium font-mono text-muted-foreground">
+                <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium font-mono text-muted-foreground shrink-0 whitespace-nowrap">
                   <SpinnerIcon size={12} />
                   <span>Shell...</span>
                 </div>
               )}
               {creatingEditor && (
-                <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium font-mono text-muted-foreground">
+                <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium font-mono text-muted-foreground shrink-0 whitespace-nowrap">
                   <SpinnerIcon size={12} />
                   <span>Editor...</span>
                 </div>
               )}
 
               {/* Divider between real tabs and + buttons */}
-              <div className="self-stretch my-1.5 mx-4 w-px bg-border" />
+              <div className="self-stretch my-1.5 mx-1 md:mx-4 w-px bg-border shrink-0" />
 
               {/* + buttons */}
               <button
-                className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium font-mono text-muted-foreground hover:text-foreground rounded-t-md border-t border-x border-dashed border-t-muted-foreground/30 border-x-muted-foreground/20 hover:border-t-muted-foreground/50 hover:border-x-muted-foreground/40 transition-all disabled:opacity-50 disabled:cursor-default"
+                className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium font-mono text-muted-foreground hover:text-foreground rounded-t-md border-t border-x border-dashed border-t-muted-foreground/30 border-x-muted-foreground/20 hover:border-t-muted-foreground/50 hover:border-x-muted-foreground/40 transition-all disabled:opacity-50 disabled:cursor-default shrink-0 whitespace-nowrap"
                 onClick={handleNewCode}
                 disabled={creatingCode}
                 title="New code tab"
@@ -368,7 +368,7 @@ export default function CodePage({ session, codeWorkspaceId }) {
                 + Code
               </button>
               <button
-                className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium font-mono text-muted-foreground hover:text-foreground rounded-t-md border-t border-x border-dashed border-t-muted-foreground/30 border-x-muted-foreground/20 hover:border-t-muted-foreground/50 hover:border-x-muted-foreground/40 transition-all disabled:opacity-50 disabled:cursor-default"
+                className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium font-mono text-muted-foreground hover:text-foreground rounded-t-md border-t border-x border-dashed border-t-muted-foreground/30 border-x-muted-foreground/20 hover:border-t-muted-foreground/50 hover:border-x-muted-foreground/40 transition-all disabled:opacity-50 disabled:cursor-default shrink-0 whitespace-nowrap"
                 onClick={handleNewShell}
                 disabled={creatingShell}
                 title="New shell terminal"
@@ -376,7 +376,7 @@ export default function CodePage({ session, codeWorkspaceId }) {
                 + Shell
               </button>
               <button
-                className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium font-mono text-muted-foreground hover:text-foreground rounded-t-md border-t border-x border-dashed border-t-muted-foreground/30 border-x-muted-foreground/20 hover:border-t-muted-foreground/50 hover:border-x-muted-foreground/40 transition-all disabled:opacity-50 disabled:cursor-default"
+                className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium font-mono text-muted-foreground hover:text-foreground rounded-t-md border-t border-x border-dashed border-t-muted-foreground/30 border-x-muted-foreground/20 hover:border-t-muted-foreground/50 hover:border-x-muted-foreground/40 transition-all disabled:opacity-50 disabled:cursor-default shrink-0 whitespace-nowrap"
                 onClick={handleNewEditor}
                 disabled={creatingEditor}
                 title="New file editor"
@@ -385,7 +385,7 @@ export default function CodePage({ session, codeWorkspaceId }) {
               </button>
 
               <button
-                className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium font-mono text-muted-foreground hover:text-foreground rounded-t-md border-t border-x border-dashed border-t-muted-foreground/30 border-x-muted-foreground/20 hover:border-t-muted-foreground/50 hover:border-x-muted-foreground/40 transition-all"
+                className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium font-mono text-muted-foreground hover:text-foreground rounded-t-md border-t border-x border-dashed border-t-muted-foreground/30 border-x-muted-foreground/20 hover:border-t-muted-foreground/50 hover:border-x-muted-foreground/40 transition-all shrink-0 whitespace-nowrap"
                 onClick={() => { setShowPortInput(true); setPortInput(''); }}
                 title="Forward a port"
               >
@@ -398,7 +398,7 @@ export default function CodePage({ session, codeWorkspaceId }) {
                   {portForwards.map((pf) => (
                     <div
                       key={pf.port}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium font-mono text-muted-foreground rounded-t-md border border-b-0 border-emerald-500/30 bg-emerald-500/5"
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium font-mono text-muted-foreground shrink-0 whitespace-nowrap rounded-t-md border border-b-0 border-emerald-500/30 bg-emerald-500/5"
                     >
                       <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                       <span>:{pf.port}</span>
@@ -553,7 +553,7 @@ function PinnedTab({ tab, isActive, onClick, onClose, closeTitle }) {
   return (
     <div
       className={cn(
-        'group flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium font-mono rounded-t-md border border-b-0 transition-colors cursor-pointer',
+        'group flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium font-mono rounded-t-md border border-b-0 transition-colors cursor-pointer shrink-0 whitespace-nowrap',
         isActive
           ? 'bg-background text-foreground border-border -mb-px'
           : 'bg-muted/40 text-muted-foreground border-border/50 hover:text-foreground hover:bg-muted/70'
@@ -593,7 +593,7 @@ function SortableTab({ tab, isActive, onClick, onClose }) {
       {...attributes}
       {...listeners}
       className={cn(
-        'group flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium font-mono rounded-t-md border border-b-0 transition-colors cursor-grab active:cursor-grabbing',
+        'group flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium font-mono rounded-t-md border border-b-0 transition-colors cursor-grab active:cursor-grabbing shrink-0 whitespace-nowrap',
         isActive
           ? 'bg-background text-foreground border-border -mb-px'
           : 'bg-muted/40 text-muted-foreground border-border/50 hover:text-foreground hover:bg-muted/70'

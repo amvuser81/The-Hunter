@@ -694,7 +694,7 @@ export default function TerminalView({ codeWorkspaceId, wsPath, isActive = true,
                 {themeLabel}
               </button>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, overflowX: 'auto' }} className="scrollbar-hide">
               {voiceAvailable && (
                 <div ref={voiceDialogRef} style={{ position: 'relative' }}>
                   <button

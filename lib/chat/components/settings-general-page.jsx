@@ -73,23 +73,22 @@ export function SettingsGeneralPage({ session }) {
           </p>
         </div>
 
-        <div className="flex items-center gap-3 mb-3">
-          <button
-            onClick={handleCheckForUpdates}
-            disabled={checking}
-            className="px-3 py-1.5 text-sm font-medium rounded-md bg-foreground text-background hover:bg-foreground/90 disabled:opacity-50 transition-colors"
-          >
-            {checking ? 'Checking...' : 'Check for Updates'}
-          </button>
-          {checkResult === 'updated' && (
-            <span className="text-sm text-green-500">Update found</span>
-          )}
-          {checkResult === 'current' && (
-            <span className="text-sm text-muted-foreground">Already up to date</span>
-          )}
-        </div>
-
-        <div className="rounded-lg border bg-card p-4">
+        <div className="rounded-lg border bg-card p-4 space-y-4">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleCheckForUpdates}
+              disabled={checking}
+              className="px-3 py-1.5 text-sm font-medium rounded-md bg-foreground text-background hover:bg-foreground/90 disabled:opacity-50 transition-colors"
+            >
+              {checking ? 'Checking...' : 'Check for Updates'}
+            </button>
+            {checkResult === 'updated' && (
+              <span className="text-sm text-green-500">Update found</span>
+            )}
+            {checkResult === 'current' && (
+              <span className="text-sm text-muted-foreground">Already up to date</span>
+            )}
+          </div>
           <label className="flex items-start gap-3 cursor-pointer">
             <input
               type="checkbox"

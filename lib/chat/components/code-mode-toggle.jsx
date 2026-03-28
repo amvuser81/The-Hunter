@@ -117,10 +117,10 @@ export function WorkspaceBar({
     <div className="flex items-center gap-2 text-xs min-w-0 px-1 py-0.5">
       <div className="flex items-center gap-1.5 text-muted-foreground min-w-0">
         <GitBranchIcon size={12} className="shrink-0" />
-        {repoName && <span className="shrink-0 cursor-default" title={repo}>{repoName}</span>}
+        {repoName && <span className="shrink-0 cursor-default hidden md:inline" title={repo}>{repoName}</span>}
         {branch && (
           <>
-            <span className="shrink-0 text-muted-foreground/30">/</span>
+            <span className="shrink-0 text-muted-foreground/30 hidden md:inline">/</span>
             <div className="shrink-0 max-w-[120px]">
               <Combobox
                 options={branches.map((b) => ({ value: b.name, label: b.name }))}
@@ -147,7 +147,7 @@ export function WorkspaceBar({
         {featureBranch && (
           <>
             <span className="shrink-0 text-muted-foreground/50">&larr;</span>
-            <span className="text-primary truncate min-w-[60px] cursor-default" title={featureBranch}>{featureBranch}</span>
+            <span className="text-primary truncate min-w-0 cursor-default" title={featureBranch}>{featureBranch}</span>
           </>
         )}
       </div>

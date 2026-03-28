@@ -16,14 +16,14 @@ export function SubTabLayout({ tabs, children }) {
   return (
     <div>
       {/* Sub-tab navigation (pills) */}
-      <div className="flex gap-1.5 mb-6">
+      <div className="flex gap-1.5 mb-6 overflow-x-auto scrollbar-hide max-w-full">
         {tabs.map((tab) => {
           const isActive = activePath === tab.href || activePath.startsWith(tab.href + '/');
           return (
             <a
               key={tab.id}
               href={tab.href}
-              className={`rounded-full px-3 py-1.5 min-h-[36px] inline-flex items-center text-xs font-medium transition-colors ${
+              className={`rounded-full px-3 py-1.5 min-h-[36px] inline-flex items-center text-xs font-medium transition-colors shrink-0 whitespace-nowrap ${
                 isActive
                   ? 'bg-foreground text-background'
                   : 'text-muted-foreground hover:text-foreground hover:bg-accent'

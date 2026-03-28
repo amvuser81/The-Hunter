@@ -317,7 +317,7 @@ export function ClusterPage({ session, clusterId, roleId }) {
       )}
 
       {/* Tab bar */}
-      <div className="flex gap-1 border-b border-border mb-6 overflow-x-auto">
+      <div className="flex gap-1 border-b border-border mb-6 overflow-x-auto scrollbar-hide max-w-full">
         <button
           onClick={() => switchTab('general')}
           className={`inline-flex items-center gap-2 px-3 py-2 min-h-[44px] shrink-0 text-sm font-medium border-b-2 transition-colors ${

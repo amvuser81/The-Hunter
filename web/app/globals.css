@@ -77,6 +77,14 @@
   border-radius: 3px;
 }
 
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* Code block horizontal scroll — target the pre (code-block-body), not the
    outer wrapper which needs overflow-hidden for border-radius clipping */
 [data-streamdown="code-block-body"] {

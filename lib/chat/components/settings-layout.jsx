@@ -28,7 +28,7 @@ export function SettingsLayout({ session, children }) {
       </div>
 
       {/* Tab navigation */}
-      <div className="flex gap-1 border-b border-border mb-6 overflow-x-auto">
+      <div className="flex gap-1 border-b border-border mb-6 overflow-x-auto scrollbar-hide max-w-full">
         {TABS.map((tab) => {
           const isActive = activePath === tab.href || activePath.startsWith(tab.href + '/');
           const Icon = tab.icon;

@@ -82,8 +82,8 @@ export function ApiKeysListPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <div>
+      <div className="flex items-start justify-between gap-3 mb-4">
+        <div className="min-w-0">
           <h2 className="text-base font-medium">API Keys</h2>
           <p className="text-sm text-muted-foreground">Authenticate external requests to /api endpoints via the x-api-key header.</p>
         </div>

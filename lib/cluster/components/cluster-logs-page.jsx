@@ -129,14 +129,14 @@ export function ClusterLogsPage({ session, clusterId }) {
             {/* Body */}
             <div className="flex flex-col md:flex-row flex-1 min-h-0">
               {/* Left: role list */}
-              <div className="shrink-0 border-b md:border-b-0 md:border-r border-border overflow-x-auto md:overflow-y-auto md:w-56 bg-muted/30">
+              <div className="shrink-0 border-b md:border-b-0 md:border-r border-border overflow-x-auto scrollbar-hide md:overflow-y-auto md:w-56 bg-muted/30">
                 <div className="hidden md:block px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Roles
                 </div>
                 {logData.length === 0 ? (
                   <div className="px-3 py-4 text-xs text-muted-foreground">No logs yet</div>
                 ) : (
-                  <div className="flex md:block overflow-x-auto md:overflow-x-visible gap-2 px-3 py-2 md:p-0">
+                  <div className="flex md:block overflow-x-auto scrollbar-hide md:overflow-x-visible gap-2 px-3 py-2 md:p-0">
                     {logData.map((role) => (
                       <button
                         key={role.roleShortId}
@@ -208,7 +208,7 @@ export function ClusterLogsPage({ session, clusterId }) {
                           {expanded && (
                             <div className="border-t border-border">
                               {/* Tabs */}
-                              <div className="flex items-center gap-0 border-b border-border bg-muted/30">
+                              <div className="flex items-center gap-0 border-b border-border bg-muted/30 overflow-x-auto scrollbar-hide max-w-full">
                                 {[
                                   { id: 'code', label: 'Code' },
                                   { id: 'console', label: 'Console' },
@@ -219,7 +219,7 @@ export function ClusterLogsPage({ session, clusterId }) {
                                   <button
                                     key={t.id}
                                     onClick={() => setTab(key, t.id)}
-                                    className={`px-4 py-2 text-xs font-medium transition-colors border-b-2 ${
+                                    className={`px-4 py-2 text-xs font-medium transition-colors border-b-2 shrink-0 whitespace-nowrap ${
                                       tab === t.id
                                         ? 'border-b-foreground text-foreground'
                                         : 'border-b-transparent text-muted-foreground hover:text-foreground'
