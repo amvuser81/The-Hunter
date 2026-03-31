@@ -6,7 +6,6 @@ import { FitAddon } from '@xterm/addon-fit';
 import { SearchAddon } from '@xterm/addon-search';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { SerializeAddon } from '@xterm/addon-serialize';
-import { ClipboardAddon } from '@xterm/addon-clipboard';
 import '@xterm/xterm/css/xterm.css';
 import { SpinnerIcon, MicIcon } from '../chat/components/icons.js';
 import { COMMAND_LABELS, CommandOutputDialog } from '../chat/components/code-mode-toggle.js';
@@ -204,7 +203,6 @@ export default function TerminalView({ codeWorkspaceId, wsPath, isActive = true,
     term.loadAddon(searchAddon);
     term.loadAddon(webLinksAddon);
     term.loadAddon(serializeAddon);
-    term.loadAddon(new ClipboardAddon());
 
     termRef.current = term;
     fitAddonRef.current = fitAddon;
