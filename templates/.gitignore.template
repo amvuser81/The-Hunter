@@ -21,7 +21,7 @@ skills/*/node_modules/
 skills/active/agent-job-secrets
 
 # Database
-data/
+/data/
 
 # Node
 node_modules/
