@@ -70,6 +70,7 @@ export function ChatInput({ input, setInput, onSubmit, status, stop, files, setF
     if (!textarea) return;
     textarea.style.height = 'auto';
     textarea.style.height = `${textarea.scrollHeight}px`;
+    textarea.scrollTop = textarea.scrollHeight;
   }, []);
 
   useEffect(() => {

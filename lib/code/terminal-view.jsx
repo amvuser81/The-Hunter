@@ -64,6 +64,7 @@ export default function TerminalView({ codeWorkspaceId, wsPath, isActive = true,
   const [voiceText, setVoiceText] = useState('');
   const [partialText, setPartialText] = useState('');
   const voiceDialogRef = useRef(null);
+  const voiceTextareaRef = useRef(null);
   const volumeRef = useRef(0);
 
   const { voiceAvailable, isConnecting, isRecording, startRecording, stopRecording } = useVoiceInput({
@@ -377,6 +378,13 @@ export default function TerminalView({ codeWorkspaceId, wsPath, isActive = true,
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
   }, [voiceDialogOpen, closeVoiceDialog]);
+
+  // Auto-scroll voice textarea to bottom as text grows
+  useEffect(() => {
+    if (voiceTextareaRef.current) {
+      voiceTextareaRef.current.scrollTop = voiceTextareaRef.current.scrollHeight;
+    }
+  }, [voiceText, partialText]);
 
   const themeIcon = termTheme === 'light' ? (
     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
@@ -710,6 +718,7 @@ export default function TerminalView({ codeWorkspaceId, wsPath, isActive = true,
                   {voiceDialogOpen && (
                     <div className="code-voice-dialog">
                       <textarea
+                        ref={voiceTextareaRef}
                         rows={6}
                         value={voiceText + (partialText ? (voiceText && !voiceText.endsWith(' ') ? ' ' : '') + partialText : '')}
                         onChange={(e) => { setVoiceText(e.target.value); setPartialText(''); }}
